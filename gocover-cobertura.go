@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/xml"
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -17,8 +18,26 @@ import (
 
 const coberturaDTDDecl = "<!DOCTYPE coverage SYSTEM \"http://cobertura.sourceforge.net/xml/coverage-04.dtd\">\n"
 
+var from = flag.String("from", "coverage.txt", "souce coverage file")
+var to = flag.String("to", "coverage.xml", "xml file name  convert to ")
+
 func main() {
-	convert(os.Stdin, os.Stdout)
+	flag.Parse()
+	fileFrom, err := os.Open(*from)
+	if err != nil {
+		fmt.Println("error open from file")
+		return
+	}
+	defer fileFrom.Close()
+
+	fileTo, err := os.OpenFile(*to, os.O_WRONLY|os.O_CREATE, 0666) // 此处假设当前目录下已存在test目录
+	if err != nil {
+		fmt.Println("error create to file")
+		return
+	}
+
+	defer fileTo.Close()
+	convert(fileFrom, fileTo)
 }
 
 func convert(in io.Reader, out io.Writer) {
@@ -35,6 +54,10 @@ func convert(in io.Reader, out io.Writer) {
 
 	coverage := Coverage{Sources: sources, Packages: nil, Timestamp: time.Now().UnixNano() / int64(time.Millisecond)}
 	coverage.parseProfiles(profiles)
+
+	fmt.Println("profile len", len(profiles))
+	fmt.Printf("srcDir len:%d,%v\n", len(srcDirs), srcDirs)
+	fmt.Println("coverage package len", len(coverage.Packages))
 
 	fmt.Fprintf(out, xml.Header)
 	fmt.Fprintf(out, coberturaDTDDecl)
